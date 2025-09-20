@@ -1,0 +1,93 @@
+/* Reset */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: "Segoe UI", Roboto, Arial, sans-serif;
+}
+
+/* Fundo */
+body {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  background: #f2f2f7;
+}
+
+/* Container */
+.auth-container {
+  background: #fff;
+  padding: 2.5rem;
+  border-radius: 12px;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.1);
+  width: 350px;
+  text-align: center;
+}
+
+/* Título */
+.auth-container h2 {
+  margin-bottom: 1.5rem;
+  color: #222;
+}
+
+/* Inputs */
+.form-group {
+  margin-bottom: 1.2rem;
+  text-align: left;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 0.4rem;
+  font-size: 14px;
+  color: #555;
+}
+
+.form-group input {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #d1d1d6;
+  border-radius: 8px;
+  font-size: 15px;
+  outline: none;
+  transition: border-color 0.3s;
+}
+
+.form-group input:focus {
+  border-color: #007aff;
+}
+
+/* Botão */
+.btn {
+  width: 100%;
+  padding: 10px;
+  background: #007aff;
+  border: none;
+  border-radius: 8px;
+  color: #fff;
+  font-size: 16px;
+  cursor: pointer;
+  transition: background 0.25s;
+}
+
+.btn:hover {
+  background: #005ecb;
+}
+
+/* Link */
+.redirect {
+  margin-top: 1.2rem;
+  font-size: 14px;
+  color: #444;
+}
+
+.redirect a {
+  color: #007aff;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.redirect a:hover {
+  text-decoration: underline;
+}

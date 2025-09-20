@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>To-Do List</title>
+  <link rel="stylesheet" href="index.css">
+</head>
+<body>
+  <div class="container">
+    <!-- Cabeçalho -->
+    <header>
+      <h1>To-Do List</h1>
+      <div class="top-buttons">
+        <button id="logout-btn">Sair</button>
+        <button id="dark-toggle">🌙 Tema Escuro</button>
+      </div>
+    </header>
+
+    <!-- Adicionar tarefa -->
+    <section class="add-task-section">
+      <form id="todo-form">
+        <input type="text" id="task-input" placeholder="Digite uma nova tarefa..." required>
+        <button type="submit" class="add">Adicionar</button>
+      </form>
+    </section>
+
+    <!-- Buscar tarefa -->
+    <section class="search-section">
+      <input type="text" id="search-input" placeholder="Buscar tarefas...">
+    </section>
+
+    <!-- Filtros -->
+    <section class="filters-section">
+      <button data-filter="all" class="active">Todas</button>
+      <button data-filter="pending">Pendentes</button>
+      <button data-filter="completed">Concluídas</button>
+    </section>
+
+    <!-- Lista de tarefas -->
+    <section class="task-list-section">
+      <ul id="task-list" class="task-list"></ul>
+    </section>
+
+    <!-- Contadores -->
+    <section class="counters-section">
+      <span id="total">Total: 0</span>
+      <span id="pending">Pendentes: 0</span>
+      <span id="done">Concluídas: 0</span>
+    </section>
+
+    <!-- Gráfico -->
+    <section class="chart-section">
+      <canvas id="tasksChart"></canvas>
+    </section>
+
+    <!-- Mensagem -->
+    <div id="message" class="message"></div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script>
+    const API_URL = "http://localhost:3000/tasks";
+    const taskList = document.getElementById("task-list");
+    const form = document.getElementById("todo-form");
+    const input = document.getElementById("task-input");
+    const searchInput = document.getElementById("search-input");
+    const messageBox = document.getElementById("message");
+    const logoutBtn = document.getElementById("logout-btn");
+    const darkToggle = document.getElementById("dark-toggle");
+
+    const counters = {
+      total: document.getElementById("total"),
+      pending: document.getElementById("pending"),
+      done: document.getElementById("done")
+    };
+
+    let tasks = [];
+    let currentFilter = "all";
+    let searchQuery = "";
+
+    // Token
+    const token = localStorage.getItem("token");
+    if (!token) window.location.href = "login.html";
+    const headers = { "Content-Type": "application/json", "Authorization": "Bearer " + token };
+
+    // Logout
+    logoutBtn.onclick = () => {
+      localStorage.removeItem("token");
+      window.location.href = "login.html";
+    };
+
+    // Dark mode toggle
+    darkToggle.onclick = () => document.body.classList.toggle("dark");
+
+    // Mensagem temporária
+    const showMessage = (msg, type="primary") => {
+      messageBox.textContent = msg;
+      messageBox.style.color = type === "danger" ? "#e74c3c" : "#2c3e50";
+      setTimeout(() => messageBox.textContent = "", 2000);
+    };
+
+    // Atualizar contadores
+    const updateCounters = (list) => {
+      const total = list.length;
+      const done = list.filter(t => t.completed).length;
+      const pending = total - done;
+      counters.total.textContent = `Total: ${total}`;
+      counters.pending.textContent = `Pendentes: ${pending}`;
+      counters.done.textContent = `Concluídas: ${done}`;
+    };
+
+    // Chart.js
+    let tasksChart;
+    const ctx = document.getElementById('tasksChart').getContext('2d');
+    const updateChart = (list) => {
+      const done = list.filter(t => t.completed).length;
+      const pending = list.length - done;
+      const data = {
+        labels: ['Pendentes', 'Concluídas'],
+        datasets: [{ label: 'Tarefas', data: [pending, done], backgroundColor: ['#f39c12', '#27ae60'] }]
+      };
+      const config = { type: 'doughnut', data, options: { responsive:true, plugins:{ legend:{ position:'bottom' }, title:{ display:true, text:'Status das Tarefas' }}}};
+      if(tasksChart) { tasksChart.data.datasets[0].data = [pending, done]; tasksChart.update(); }
+      else tasksChart = new Chart(ctx, config);
+    };
+
+    // Renderizar tarefas
+    const renderTasks = () => {
+      taskList.innerHTML = "";
+      const filtered = tasks
+        .filter(task => (currentFilter === "all" || 
+                         (currentFilter === "completed" && task.completed) || 
+                         (currentFilter === "pending" && !task.completed)))
+        .filter(task => task.task.toLowerCase().includes(searchQuery.toLowerCase()));
+
+      filtered.forEach(task => {
+        const li = document.createElement("li");
+        li.className = "task-item";
+
+        const span = document.createElement("span");
+        span.className = "task-text";
+        span.textContent = task.task;
+        if(task.completed) span.classList.add("completed");
+
+        // Toggle completo
+        span.onclick = async () => {
+          task.completed = !task.completed;
+          await updateTask(task);
+          renderTasks();
+        };
+
+        // Editar
+        span.ondblclick = () => {
+          const inputEdit = document.createElement("input");
+          inputEdit.type = "text";
+          inputEdit.value = task.task;
+          inputEdit.onblur = async () => { task.task = inputEdit.value; await updateTask(task); renderTasks(); };
+          li.replaceChild(inputEdit, span);
+          inputEdit.focus();
+        };
+
+        const btn = document.createElement("button");
+        btn.className = "delete";
+        btn.textContent = "Excluir";
+        btn.onclick = async () => {
+          const res = await fetch(`${API_URL}/${task._id}`, { method: "DELETE", headers });
+          const data = await res.json();
+          if(!res.ok) showMessage(data.error, "danger");
+          tasks = tasks.filter(t => t._id !== task._id);
+          renderTasks();
+          showMessage("Tarefa excluída!");
+        };
+
+        li.append(span, btn);
+        taskList.appendChild(li);
+      });
+
+      updateCounters(filtered);
+      updateChart(filtered);
+    };
+
+    // Fetch tarefas
+    const fetchTasks = async () => {
+      try {
+        const res = await fetch(API_URL, { headers });
+        const data = await res.json();
+        tasks = Array.isArray(data) ? data : [];
+        renderTasks();
+      } catch {
+        showMessage("Erro ao conectar com o servidor", "danger");
+      }
+    };
+
+    // Adicionar tarefa
+    const addTask = async taskText => {
+      try {
+        const res = await fetch(API_URL, { method:"POST", headers, body:JSON.stringify({task:taskText}) });
+        const data = await res.json();
+        if(!res.ok) return showMessage(data.error, "danger");
+        tasks.push(data);
+        renderTasks();
+        showMessage("Tarefa adicionada!");
+      } catch { showMessage("Erro ao adicionar tarefa", "danger"); }
+    };
+
+    const updateTask = async task => {
+      try {
+        const res = await fetch(`${API_URL}/${task._id}`, { method:"PUT", headers, body:JSON.stringify(task) });
+        const data = await res.json();
+        if(!res.ok) showMessage(data.error, "danger");
+      } catch { showMessage("Erro ao atualizar tarefa", "danger"); }
+    };
+
+    // Eventos
+    form.addEventListener("submit", e => { e.preventDefault(); if(input.value.trim()) addTask(input.value.trim()); input.value = ""; });
+    searchInput.addEventListener("input", e => { searchQuery = e.target.value; renderTasks(); });
+
+    document.querySelectorAll(".filters button").forEach(btn => {
+      btn.onclick = () => {
+        document.querySelectorAll(".filters button").forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+        currentFilter = btn.dataset.filter;
+        renderTasks();
+      };
+    });
+
+    fetchTasks();
+  </script>
+</body>
+</html>
